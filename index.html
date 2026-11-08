@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiosco POS</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🏪 Kiosco POS</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="top-actions">
+      <span id="shift-badge" class="badge"></span>
+      <button class="btn ghost" id="theme-btn" title="Cambiar tema">🌓</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="view" id="view-dash"></section>
+    <section class="view" id="view-pos"></section>
+    <section class="view" id="view-inv"></section>
+    <section class="view" id="view-cash"></section>
+    <section class="view" id="view-cli"></section>
+    <section class="view" id="view-sup"></section>
+    <section class="view" id="view-transf"></section>
+  </main>
+
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+  <div id="modals"></div>
+  <div id="toasts"></div>
+
+  <script src="js/ui.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/domain.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/pos.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/cash.js"></script>
+  <script src="js/customers.js"></script>
+  <script src="js/suppliers.js"></script>
+  <script src="js/transfers.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
