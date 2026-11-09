@@ -41,9 +41,9 @@ const Transfers = {
       if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
         try {
           const obj = JSON.parse(trimmed);
-          titulo = (obj.titulo || obj.title || '').trim();
-          mensaje = (obj.mensaje || obj.message || obj.text || '').trim();
-          textoExtendido = (obj.texto_extendido || obj.big_text || obj.bigText || '').trim();
+          titulo = (obj.titulo || obj.title || obj.not_title || '').trim();
+          mensaje = (obj.mensaje || obj.message || obj.text || obj.notification || obj.body || obj.not_body || '').trim();
+          textoExtendido = (obj.texto_extendido || obj.big_text || obj.bigText || obj.not_big_text || '').trim();
         } catch (e) {
           rawCombined = rawInput;
         }
@@ -51,14 +51,14 @@ const Transfers = {
         rawCombined = rawInput;
       }
     } else if (rawInput && typeof rawInput === 'object') {
-      titulo = (rawInput.titulo || rawInput.title || '').trim();
-      mensaje = (rawInput.mensaje || rawInput.message || rawInput.text || '').trim();
-      textoExtendido = (rawInput.texto_extendido || rawInput.big_text || rawInput.bigText || '').trim();
+      titulo = (rawInput.titulo || rawInput.title || rawInput.not_title || '').trim();
+      mensaje = (rawInput.mensaje || rawInput.message || rawInput.text || rawInput.notification || rawInput.body || rawInput.not_body || '').trim();
+      textoExtendido = (rawInput.texto_extendido || rawInput.big_text || rawInput.bigText || rawInput.not_big_text || '').trim();
     }
 
     // Limpiar variables de MacroDroid que no fueron reemplazadas
     if (textoExtendido === '[not_big_text]') textoExtendido = '';
-    if (mensaje === '[not_text]') mensaje = '';
+    if (mensaje === '[not_text]' || mensaje === '[not_body]' || mensaje === '[notification]') mensaje = '';
     if (titulo === '[not_title]') titulo = '';
 
     const textParts = [textoExtendido, mensaje, titulo, rawCombined].filter(Boolean);
