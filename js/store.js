@@ -17,7 +17,7 @@ const Store = {
       .forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
     if (!Array.isArray(s.categories)) s.categories = [];
     s.counters = Object.assign({ sale: 1 }, s.counters);
-    s.settings = Object.assign({ theme: 'dark', expiryDays: 30 }, s.settings);
+    s.settings = Object.assign({ theme: 'dark', expiryDays: 30, adminPin: '1234' }, s.settings);
     if (!s.version) s.version = base.version;
   },
   save() {

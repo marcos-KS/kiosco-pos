@@ -201,6 +201,7 @@ Views.transf = {
         <div class="stat"><div class="l">Conexión con el celular</div><div class="v" style="font-size:1.1rem">${Transfers.statusHtml()}</div></div>
       </div>
       <div class="card"><div class="row"><h3 class="grow" style="margin:0">💸 Transferencias recibidas</h3>
+        <button class="btn" id="tr-pin">🔒 Clave Admin</button>
         <button class="btn" id="tr-test">Enviar prueba</button>
         <button class="btn" id="tr-notif">Avisos del navegador</button></div>
         ${all.length ? `<div class="table-wrap"><table><tr><th>Hora</th><th class="num">Monto</th><th>De</th><th>Estado</th><th></th></tr>
@@ -226,6 +227,7 @@ Views.transf = {
         <p class="muted">Los avisos solo sirven para <strong>mirar</strong>: confirmá siempre que el dinero esté en tu cuenta. Quien conozca la dirección del canal podría enviar avisos falsos.</p>
       </div>`;
     const $ = id => root.querySelector('#' + id);
+    $('tr-pin').onclick = () => UI.changePinModal();
     $('tr-test').onclick = () => Transfers.sendTest();
     $('tr-notif').onclick = async () => {
       if (!('Notification' in window)) { UI.toast('Este navegador no soporta avisos', 'error'); return; }
@@ -239,15 +241,23 @@ Views.transf = {
       else { document.execCommand('copy'); done(); }
     };
     $('tr-new').onclick = async () => {
+      const ok = await UI.askPin('generar un nuevo canal de transferencias');
+      if (!ok) return;
       if (!await UI.confirm('Se generará un canal nuevo y tendrás que actualizar la dirección en MacroDroid. ¿Continuar?', 'Generar', true)) return;
       const s = Transfers.settings(); s.ntfyTopic = ''; s.ntfySince = 0; Store.save();
       Transfers.connect(); this.render();
     };
     root.onclick = async e => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.edit) this.editModal(b.dataset.edit);
-      else if (b.dataset.del && await UI.confirm('¿Quitar esta transferencia de la lista?', 'Quitar', true)) {
+      if (b.dataset.edit) {
+        const ok = await UI.askPin('editar esta transferencia');
+        if (ok) this.editModal(b.dataset.edit);
+      }
+      else if (b.dataset.del) {
+        const ok = await UI.askPin('borrar esta transferencia');
+        if (!ok) return;
         const S = Domain.S(); S.transfers = S.transfers.filter(t => t.id !== b.dataset.del); Store.save(); this.render();
+        UI.toast('Transferencia eliminada', 'ok');
       }
     };
   },

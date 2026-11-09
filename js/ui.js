@@ -80,6 +80,83 @@ const UI = {
     });
   },
 
+  askPin(actionName = 'realizar esta acción') {
+    return new Promise(resolve => {
+      const s = Domain.S().settings;
+      const currentPin = String(s.adminPin || '1234');
+      let done = false;
+      const finish = v => { if (!done) { done = true; resolve(v); } };
+      const h = this.modal({
+        title: '🔒 Clave de Administrador',
+        html: `<form id="pin-form">
+          <p>Ingresá la clave de administrador para <strong>${this.esc(actionName)}</strong>:</p>
+          <div class="field"><input name="pin" type="password" required autofocus placeholder="Clave de admin"></div>
+          <div class="modal-foot">
+            <button type="button" class="btn" data-cancel>Cancelar</button>
+            <button class="btn danger" type="submit">Autorizar</button>
+          </div>
+        </form>`,
+        onMount: (el, close) => {
+          el.querySelector('[data-cancel]').onclick = () => { finish(false); close(); };
+          el.querySelector('#pin-form').onsubmit = e => {
+            e.preventDefault();
+            const val = e.target.pin.value;
+            if (val === currentPin) {
+              finish(true);
+              close();
+            } else {
+              UI.beep('error');
+              UI.toast('Clave de administrador incorrecta', 'error');
+              e.target.pin.value = '';
+              e.target.pin.focus();
+            }
+          };
+        }
+      });
+      const origClose = h.close;
+      h.close = () => { finish(false); origClose(); };
+      h.el.parentElement.querySelector('[data-close]').onclick = h.close;
+    });
+  },
+
+  changePinModal() {
+    const s = Domain.S().settings;
+    const currentPin = String(s.adminPin || '1234');
+    this.modal({
+      title: 'Cambiar clave de Administrador',
+      html: `<form id="change-pin-form">
+        <div class="field"><label>Clave actual (por defecto: 1234)</label><input name="oldPin" type="password" required autofocus></div>
+        <div class="field"><label>Nueva clave</label><input name="newPin" type="password" minlength="4" required></div>
+        <div class="field"><label>Repetir nueva clave</label><input name="newPin2" type="password" minlength="4" required></div>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-cancel>Cancelar</button>
+          <button class="btn primary" type="submit">Guardar clave</button>
+        </div>
+      </form>`,
+      onMount: (el, close) => {
+        el.querySelector('[data-cancel]').onclick = close;
+        el.querySelector('#change-pin-form').onsubmit = e => {
+          e.preventDefault();
+          const f = e.target;
+          if (f.oldPin.value !== currentPin) {
+            UI.beep('error');
+            UI.toast('La clave actual no es correcta', 'error');
+            return;
+          }
+          if (f.newPin.value !== f.newPin2.value) {
+            UI.beep('error');
+            UI.toast('Las claves nuevas no coinciden', 'error');
+            return;
+          }
+          s.adminPin = f.newPin.value;
+          Store.save();
+          close();
+          UI.toast('Clave de administrador actualizada con éxito', 'ok');
+        };
+      }
+    });
+  },
+
   download(filename, content, mime) {
     const blob = new Blob([content], { type: mime });
     const a = document.createElement('a');
