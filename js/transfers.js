@@ -32,30 +32,98 @@ const Transfers = {
   },
   disconnect() { if (this.es) { this.es.close(); this.es = null; } },
 
-  /** Lee monto y remitente del texto de la notificación (formatos argentinos: $1.234,56). */
-  parse(text) {
-    const out = { amount: null, from: '' };
-    const m = text.match(/\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/);
-    let rest = text;
-    if (m) {
-      let n = m[1];
+  /** Lee monto y remitente analizando texto simple o el JSON enviado desde MacroDroid. */
+  parse(rawInput) {
+    let titulo = '', mensaje = '', textoExtendido = '', rawCombined = '';
+
+    if (typeof rawInput === 'string') {
+      let trimmed = rawInput.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const obj = JSON.parse(trimmed);
+          titulo = (obj.titulo || obj.title || '').trim();
+          mensaje = (obj.mensaje || obj.message || obj.text || '').trim();
+          textoExtendido = (obj.texto_extendido || obj.big_text || obj.bigText || '').trim();
+        } catch (e) {
+          rawCombined = rawInput;
+        }
+      } else {
+        rawCombined = rawInput;
+      }
+    } else if (rawInput && typeof rawInput === 'object') {
+      titulo = (rawInput.titulo || rawInput.title || '').trim();
+      mensaje = (rawInput.mensaje || rawInput.message || rawInput.text || '').trim();
+      textoExtendido = (rawInput.texto_extendido || rawInput.big_text || rawInput.bigText || '').trim();
+    }
+
+    const textParts = [textoExtendido, mensaje, titulo, rawCombined].filter(Boolean);
+    const fullText = textParts.join(' \n ');
+
+    // 1. Extraer Monto ($ 1.234,56 o $1234.56)
+    let amount = null;
+    const matchMoney = fullText.match(/\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/);
+    if (matchMoney) {
+      let n = matchMoney[1];
       if (n.includes(',')) n = n.replace(/\./g, '').replace(',', '.');
       else if (/^\d{1,3}(\.\d{3})+$/.test(n)) n = n.replace(/\./g, '');
       const v = parseFloat(n);
-      if (isFinite(v) && v > 0) out.amount = UI.round2(v);
-      rest = text.slice(m.index + m[0].length);
+      if (isFinite(v) && v > 0) amount = UI.round2(v);
     }
-    const f = rest.match(/\b(?:de|desde)\s+(.+?)(?=\s+(?:por|a tu|en tu|te\b)|[.,\n]|$)/i);
-    if (f) out.from = f[1].trim();
-    return out;
+
+    // 2. Extraer Nombre de quien transfiere
+    let from = '';
+    const candidateTexts = [textoExtendido, mensaje, fullText];
+
+    for (const t of candidateTexts) {
+      if (!t) continue;
+
+      // Patrón A: "Juan Perez te transfirió..." o "Juan Perez te envió..."
+      const mTe = t.match(/(?:^|\n|[.¡!])\s*([A-Za-zÀ-ÿ0-9\s.]+?)\s+te\s+(?:transfiri[oó]|envi[oó]|mand[oó]|acredit[oó]|hizo\s+una\s+transferencia)/i);
+      if (mTe && mTe[1] && !/personal\s*pay|billetera/i.test(mTe[1])) {
+        from = mTe[1].trim();
+        break;
+      }
+
+      // Patrón B: "de Juan Perez" o "desde Juan Perez"
+      const mDe = t.match(/\b(?:de|desde|remitente:?)\s+([A-Za-zÀ-ÿ0-9\s.]+?)(?=\s+(?:por|a tu|en tu|te\b|a través)|[.,\n¡!]|$|\(|\$)/i);
+      if (mDe && mDe[1] && !/personal\s*pay|billetera/i.test(mDe[1])) {
+        from = mDe[1].trim();
+        break;
+      }
+
+      // Patrón C: "Remitente: Juan Perez" o "Origen: Juan Perez"
+      const mDeColon = t.match(/(?:de|remitente|origen):\s*([A-Za-zÀ-ÿ0-9\s.]+?)(?=\s+[.,\n]|$|\$)/i);
+      if (mDeColon && mDeColon[1]) {
+        from = mDeColon[1].trim();
+        break;
+      }
+    }
+
+    // Patrón D: El título es el nombre de la persona (cuando no dice Personal Pay / Transferencia)
+    if (!from && titulo) {
+      if (!/personal\s*pay|transferencia|dinero|recibiste|notificaci[oó]n|aviso|ingreso|cuenta/i.test(titulo) && !titulo.includes('$')) {
+        from = titulo;
+      }
+    }
+
+    if (from) {
+      from = from.replace(/^[:\-–—\s]+|[:\-–—\s]+$/g, '').trim();
+      from = from.replace(/^["']|["']$/g, '');
+    }
+
+    const displayRaw = textoExtendido || mensaje || fullText;
+    return { amount, from, raw: displayRaw };
   },
 
   receive(m) {
     if (m.event && m.event !== 'message') return;
     const S = Domain.S();
     if (m.id && S.transfers.some(t => t.ntfyId === m.id)) return;
-    const raw = [m.title, m.message].filter(Boolean).join(' — ');
-    const p = this.parse(raw);
+    
+    // Si el mensaje es el JSON de MacroDroid o texto plano:
+    const p = this.parse(m.message || m.title || '');
+    const raw = p.raw || [m.title, m.message].filter(Boolean).join(' — ');
+
     const t = {
       id: Store.uid(), ntfyId: m.id || '', raw, amount: p.amount, from: p.from, saleId: null,
       date: new Date((m.time || Date.now() / 1000) * 1000).toISOString()
@@ -85,7 +153,13 @@ const Transfers = {
 
   async sendTest() {
     try {
-      const r = await fetch(this.url(), { method: 'POST', body: 'Recibiste $5.000,50 de Cliente de Prueba', headers: { Title: 'Personal Pay' } });
+      const testJson = JSON.stringify({
+        app: "personal_pay",
+        titulo: "¡Recibiste dinero!",
+        mensaje: "Recibiste $ 5.000,50 de Carlos Benitez",
+        texto_extendido: "Carlos Benitez te transfirió $ 5.000,50 a tu cuenta"
+      });
+      const r = await fetch(this.url(), { method: 'POST', body: testJson, headers: { Title: 'Personal Pay' } });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       UI.toast('Prueba enviada, debería aparecer en unos segundos', 'info');
     } catch (e) { UI.toast('No se pudo enviar la prueba (¿hay internet?)', 'error'); }
