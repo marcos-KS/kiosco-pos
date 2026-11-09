@@ -56,6 +56,11 @@ const Transfers = {
       textoExtendido = (rawInput.texto_extendido || rawInput.big_text || rawInput.bigText || '').trim();
     }
 
+    // Limpiar variables de MacroDroid que no fueron reemplazadas
+    if (textoExtendido === '[not_big_text]') textoExtendido = '';
+    if (mensaje === '[not_text]') mensaje = '';
+    if (titulo === '[not_title]') titulo = '';
+
     const textParts = [textoExtendido, mensaje, titulo, rawCombined].filter(Boolean);
     const fullText = textParts.join(' \n ');
 
@@ -111,8 +116,13 @@ const Transfers = {
       from = from.replace(/^["']|["']$/g, '');
     }
 
-    const displayRaw = textoExtendido || mensaje || fullText;
-    return { amount, from, raw: displayRaw };
+    const displayParts = [
+      titulo ? `Título: ${titulo}` : '',
+      mensaje ? `Mensaje: ${mensaje}` : '',
+      textoExtendido ? `Extendido: ${textoExtendido}` : ''
+    ].filter(Boolean);
+    const displayRaw = displayParts.join('\n') || rawCombined || String(rawInput || '');
+    return { amount, from, raw: displayRaw, titulo, mensaje, textoExtendido };
   },
 
   receive(m) {
@@ -122,7 +132,9 @@ const Transfers = {
     
     // Si el mensaje es el JSON de MacroDroid o texto plano:
     const p = this.parse(m.message || m.title || '');
-    const raw = p.raw || [m.title, m.message].filter(Boolean).join(' — ');
+    const raw = (typeof m.message === 'string' && m.message.trim().startsWith('{'))
+      ? (p.raw + '\n\nJSON original:\n' + m.message)
+      : (p.raw || [m.title, m.message].filter(Boolean).join(' — '));
 
     const t = {
       id: Store.uid(), ntfyId: m.id || '', raw, amount: p.amount, from: p.from, saleId: null,
