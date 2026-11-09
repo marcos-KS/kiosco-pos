@@ -11,12 +11,35 @@
     <div class="brand">🏪 Kiosco POS</div>
     <nav class="nav" id="nav"></nav>
     <div class="top-actions">
+      <span id="user-badge" class="badge" style="display:none"></span>
       <span id="shift-badge" class="badge"></span>
       <button class="btn ghost" id="theme-btn" title="Cambiar tema">🌓</button>
+      <button class="btn ghost sm" id="logout-btn" title="Cerrar sesión" style="display:none">🔒 Salir</button>
     </div>
   </header>
 
-  <main id="main">
+  <div id="login-screen" class="login-screen active">
+    <div class="login-card">
+      <div class="login-brand">🏪 Kiosco POS</div>
+      <h2>Iniciar Sesión</h2>
+      <p class="muted">Ingresá tu nombre y clave de administrador para acceder al kiosco.</p>
+      <form id="login-form">
+        <div class="field" style="text-align:left">
+          <label>Nombre de usuario / Administrador</label>
+          <input id="login-user" type="text" required placeholder="Ej: admin o Marcos" autofocus autocomplete="username">
+        </div>
+        <div class="field" style="text-align:left">
+          <label>Clave de Administrador</label>
+          <input id="login-pass" type="password" required placeholder="Clave (por defecto: 1234)" autocomplete="current-password">
+        </div>
+        <button class="btn primary big" type="submit" style="width:100%;margin-top:.8rem">Ingresar al Kiosco</button>
+      </form>
+      <div id="login-error" class="danger" style="margin-top:.8rem;font-weight:bold;min-height:22px"></div>
+      <p class="muted" style="font-size:.8rem;margin-top:1rem">Clave inicial: <code>1234</code></p>
+    </div>
+  </div>
+
+  <main id="main" style="display:none">
     <section class="view" id="view-dash"></section>
     <section class="view" id="view-pos"></section>
     <section class="view" id="view-inv"></section>
